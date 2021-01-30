@@ -1,16 +1,25 @@
 // Default values and balancing variables
 
 // Ship fuel
-#define MAXFUEL 100
-#define FUELDECREMENT 10
-#define FUELTIMERDELAYMS 1000
+#define STARTINGFUEL 160
+#define FUELDECREMENT 1
+#define FUELTIMERDELAYMS 100
+#define FUELMAX 240
+#define FUELTARGET 230
 
-// Scanning
-#define SCANDECAYMS 1000
+// Gameplay Rates
+#define SCANDECAYMS 5000
+#define GATHERTIMEMS 1500
 
 // Color defaults
-#define FUELCOLOR ORANGE
-#define O2COLOR CYAN
+#define STARTINGFUELCOLOR WHITE
+#define FUELACOLOR RED
+#define FUELBCOLOR makeColorRGB (128, 0, 128) //Purple
+#define FUELCCOLOR GREEN
+#define FUELDCOLOR YELLOW
+#define FUELECOLOR CYAN
+#define FUELFCOLOR BLUE
+#define FUELGCOLOR MAGENTA
 #define ROCKCOLOR makeColorRGB (150, 75, 0) //Brown
 #define UNSCANNED OFF
 
@@ -18,24 +27,35 @@
 enum objectTypes {ASTEROID, SHIP};
 byte objectType = ASTEROID;
 
-/*  COMMS SCHEME
+enum gameModes {SETUP, LOADING, INGAME, FINALE};
+byte gameMode = SETUP;
+
+enum fuelTypes {NONE, FUELA, FUELB, FUELC, FUELD, FUELE, FUELF, FUELG};
+int fuelLoads[] = {40,80,120,80,120,40,80};
+int fuelBurns[] = {3, 3, 3,  2, 2,  1, 1};
+Color fuelColors[] = {FUELACOLOR,FUELBCOLOR,FUELCCOLOR,FUELDCOLOR,FUELECOLOR,FUELFCOLOR,FUELGCOLOR};
+int fuelIndexShift = 0;
+
+/*  IN-GAME COMMS SCHEME
  *   Asteroids:
- *      32         16          8        4         2         1
- *                                                        <-0->
+ *      32         16          8         4         2         1
+ *     <-Fuel Type on this face?->      <-Game Mode->      <-0->
  *   Ship(s):
- *      32         16          8        4         2         1
- *                                                        <-1->
+ *      32         16          8         4         2         1
+ *                        <-Gather?->   <-Game Mode->      <-1->
  */
 
-// Initialize timers
-Timer fuelConsumption;
-
 // Ship-specific variables
-int fuel = MAXFUEL;
+Timer fuelConsumption;
+int fuel = STARTINGFUEL;
+int burnRate = FUELDECREMENT;
+byte fuelType = NONE;
+Color fuelColor = STARTINGFUELCOLOR;
 
 // Functions and processes that run at startup, then never again.
 void setup() {
   randomize(); // Seeds randomness for any RNG use
+  makeAsteroid(); // Setup and seed this asteroid
 }
 
 // Main process loop. Each Blink runs this over and over after setup.
@@ -60,15 +80,22 @@ void loop() {
   
 }
 
+// Creating this object as an asteroid
+void makeAsteroid () {
+  
+}
+
 // Switch objects on long press
 void checkObjectSwap () {
   if (buttonLongPressed()) {
     if (objectType == ASTEROID) {
       objectType = SHIP;
-      fuel = MAXFUEL;
+      fuel = STARTINGFUEL;
+      fuelColor = STARTINGFUELCOLOR;
       fuelConsumption.set(FUELTIMERDELAYMS);
     } else {
       objectType = ASTEROID;
+      makeAsteroid();
     }
   }
 }
@@ -97,5 +124,16 @@ void commsHandler () {
 
 // Handle LED display
 void displayHandler () {
-  
+  if (objectType == SHIP) {
+    int fullLEDs = round(FUELMAX / fuel);
+    int fuelPerLED = FUELMAX / 6;
+    int remainder = fuel - (fuelPerLED * fullLEDs);
+    FOREACH_FACE(f) {
+      if (f <= (fullLEDs - 1)) {
+        
+      }
+    }
+  } else {
+    
+  }
 }
