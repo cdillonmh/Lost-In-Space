@@ -93,6 +93,7 @@ void checkObjectSwap () {
       fuel = STARTINGFUEL;
       fuelColor = STARTINGFUELCOLOR;
       fuelConsumption.set(FUELTIMERDELAYMS);
+      burnRate = FUELDECREMENT;
     } else {
       objectType = ASTEROID;
       makeAsteroid();
@@ -104,7 +105,7 @@ void checkObjectSwap () {
 void checkFuelConsumption () {
   if ( fuel > 0 ) {
     if (fuelConsumption.isExpired()) {
-      fuel = fuel - FUELDECREMENT;
+      fuel = fuel - burnRate;
       fuelConsumption.set(FUELTIMERDELAYMS);
     } else {
       destroyShip();
@@ -126,13 +127,13 @@ void commsHandler () {
 void displayHandler () {
   if (objectType == SHIP) {
     // Sliding fuel display calculations
-    int fullLEDs = round(FUELMAX / fuel); // How many LEDs are 100% full
-    int fuelPerLED = FUELMAX / 6; // Amount of fuel per LED
-    int remainder = fuel - (fuelPerLED * fullLEDs); // remaining fuel in partially full LED
+    int fuelPerLED = round(FUELMAX / 6); // Amount of fuel per LED
+    int fullLEDs = round(fuel / fuelPerLED); // How many LEDs are 100% full
+    int remainder = round(fuel % fuelPerLED); // remaining fuel in partially full LED
     FOREACH_FACE(f) {
-      if (f <= (fullLEDs - 1)) {
+      if (f < (fullLEDs)) {
         setColorOnFace(fuelColor, f); // Make full LEDs lit
-      } else if (f > (fullLEDs - 1)){
+      } else if (f > (fullLEDs)){
         setColorOnFace(OFF, f); // Make empty LEDs off
       } else {
         setColorOnFace(dim(fuelColor,map(remainder,0,fuelPerLED,0,255)), f); // set partial brightness to partially full LED, mapped to 255 scale
