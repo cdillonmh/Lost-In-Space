@@ -6,6 +6,7 @@
 #define FUELTIMERDELAYMS 100
 #define FUELMAX 240
 #define FUELTARGET 230
+#define FUELRARITY 21 // Larger is more rare
 
 // Gameplay Rates
 #define SCANDECAYMS 5000
@@ -20,8 +21,8 @@
 #define FUELECOLOR CYAN
 #define FUELFCOLOR BLUE
 #define FUELGCOLOR MAGENTA
-#define ROCKCOLOR makeColorRGB (150, 75, 0) //Brown
-#define UNSCANNED OFF
+#define ROCKCOLOR OFF //makeColorRGB (150, 75, 0) //Brown
+#define UNSCANNED OFF //makeColorRGB (20, 10, 0) //Dark Brown?
 
 // State and Comms Variables
 enum objectTypes {ASTEROID, SHIP};
@@ -31,9 +32,9 @@ enum gameModes {SETUP, LOADING, INGAME, FINALE};
 byte gameMode = SETUP;
 
 enum fuelTypes {NONE, FUELA, FUELB, FUELC, FUELD, FUELE, FUELF, FUELG};
+Color fuelColors[] = {ROCKCOLOR,FUELACOLOR,FUELBCOLOR,FUELCCOLOR,FUELDCOLOR,FUELECOLOR,FUELFCOLOR,FUELGCOLOR};
 int fuelLoads[] = {40,80,120,80,120,40,80};
 int fuelBurns[] = {3, 3, 3,  2, 2,  1, 1};
-Color fuelColors[] = {FUELACOLOR,FUELBCOLOR,FUELCCOLOR,FUELDCOLOR,FUELECOLOR,FUELFCOLOR,FUELGCOLOR};
 int fuelIndexShift = 0;
 
 /*  IN-GAME COMMS SCHEME
@@ -52,6 +53,13 @@ int burnRate = FUELDECREMENT;
 byte fuelType = NONE;
 Color fuelColor = STARTINGFUELCOLOR;
 
+// Asteroid-specific variables
+Timer scanDecay;
+bool isScanned = false;
+bool scanFading = true;
+bool freshScan = false;
+int fuelContents[] = {NONE, NONE, NONE, NONE, NONE, NONE};
+
 // Functions and processes that run at startup, then never again.
 void setup() {
   randomize(); // Seeds randomness for any RNG use
@@ -67,7 +75,7 @@ void loop() {
   // Run functions specific to object types
   switch (objectType) {
     case ASTEROID:
-      
+      checkScan();
     break;
     case SHIP:
       checkFuelConsumption();
@@ -82,7 +90,18 @@ void loop() {
 
 // Creating this object as an asteroid
 void makeAsteroid () {
-  
+  seedFuel();
+}
+
+// Randomize and distribute fuel
+void seedFuel () {
+  FOREACH_FACE(f) {
+    int randomFuel = random(FUELRARITY) - (FUELRARITY-7);
+    if (randomFuel < 0) {
+      randomFuel = 0;
+    }
+    fuelContents[f] = randomFuel;
+  }
 }
 
 // Switch objects on long press
@@ -98,6 +117,39 @@ void checkObjectSwap () {
       objectType = ASTEROID;
       makeAsteroid();
     }
+  }
+}
+
+// Handle scan display
+void checkScan () {
+  if (shipConnected()) {
+    if (!isScanned){
+      seedFuel();
+    }
+    scanFading = false;
+    isScanned = true;
+    freshScan = true;
+  } else {
+    if (freshScan == true) {
+      freshScan = false;
+      scanFading = true;
+      scanDecay.set(SCANDECAYMS);
+    } else {
+      if (scanFading == true && scanDecay.isExpired()) {
+        scanFading = false;
+        isScanned = false;
+      }
+    }
+  }
+}
+
+// Return true if ship is connected
+// TODO: Replace temp isAlone with actual check for ship
+bool shipConnected () {
+  if (!isAlone()) {
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -125,7 +177,7 @@ void commsHandler () {
 
 // Handle LED display
 void displayHandler () {
-  if (objectType == SHIP) {
+  if (objectType == SHIP) { // Ship display handler
     // Sliding fuel display calculations
     int fuelPerLED = round(FUELMAX / 6); // Amount of fuel per LED
     int fullLEDs = round(fuel / fuelPerLED); // How many LEDs are 100% full
@@ -139,7 +191,20 @@ void displayHandler () {
         setColorOnFace(dim(fuelColor,map(remainder,0,fuelPerLED,0,255)), f); // set partial brightness to partially full LED, mapped to 255 scale
       }
     }
-  } else {
-    // Asteroid display stuff here
+  } else { // Asteroid display handler
+    if (!isScanned) {
+      FOREACH_FACE (f) {
+        setColorOnFace(UNSCANNED, f);
+      }
+    } else if (!scanFading) {
+      FOREACH_FACE (f) {
+        setColorOnFace(fuelColors[fuelContents[f]],f);
+      }
+    } else {
+      int scanRemaining = map(scanDecay.getRemaining(),0,SCANDECAYMS,0,255);
+      FOREACH_FACE (f) {
+      setColorOnFace(dim(fuelColors[fuelContents[f]],scanRemaining),f);
+      }
+    }
   }
 }
