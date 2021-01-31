@@ -10,7 +10,7 @@
 
 // Gameplay Rates
 #define SCANDECAYMS 5000
-#define GATHERTIMEMS 250
+#define GATHERTIMEMS 100
 
 // Color defaults
 #define STARTINGFUELCOLOR WHITE
@@ -52,6 +52,7 @@ int fuel = STARTINGFUEL;
 int burnRate = FUELDECREMENT;
 byte fuelType = NONE;
 Color fuelColor = STARTINGFUELCOLOR;
+bool receivedOnFace[] = {false,false,false,false,false,false};
 
 // Asteroid-specific variables
 Timer scanDecay;
@@ -82,6 +83,7 @@ void loop() {
     break;
     case SHIP:
       checkFuelConsumption();
+      checkFuelReceive();
     break;
   }
   
@@ -93,6 +95,7 @@ void loop() {
 
 // Creating this object as an asteroid
 void makeAsteroid () {
+  objectType = ASTEROID;
   seedFuel();
 }
 
@@ -116,8 +119,8 @@ void checkObjectSwap () {
       fuelColor = STARTINGFUELCOLOR;
       fuelConsumption.set(FUELTIMERDELAYMS);
       burnRate = FUELDECREMENT;
+      fuelIndexShift = random(6);
     } else {
-      objectType = ASTEROID;
       makeAsteroid();
     }
   }
@@ -157,16 +160,29 @@ bool shipConnected () {
   return shipFound;
 }
 
+// Return true if asteroid is connected
+bool asteroidConnected () {
+  bool asteroidFound = false; 
+  FOREACH_FACE(f) {
+    if (isAsteroidOnFace(f)) {
+      asteroidFound = true;
+    }
+  }
+  return asteroidFound;
+}
+
 void checkFuelSend () {
-  if (shipConnected()) {
-    FOREACH_FACE(f) {
-      if (isShipOnFace(f)) {
-        sendingOnFace[f] = true;
-        gatherTimer.set(GATHERTIMEMS);
-      }
-      if (gatherTimer.isExpired() && sendingOnFace[f]) {
+  FOREACH_FACE(f) {
+    if (gatherTimer.isExpired() && sendingOnFace[f]) {
         sendingOnFace[f] = false;
         fuelContents[f] = NONE;
+    }
+  }
+  if (shipConnected() && buttonPressed()) {
+    FOREACH_FACE(f) {
+      if (fuelContents[f] != NONE && isShipOnFace(f)) {
+        sendingOnFace[f] = true;
+        gatherTimer.set(GATHERTIMEMS);
       }
     }
   }
@@ -177,9 +193,58 @@ void checkFuelSend () {
   }
 }
 
+void checkFuelReceive() {
+  FOREACH_FACE(f) {
+    if (isAsteroidOnFace(f) && sendingFuelOnFace(f) && !receivedOnFace[f]) {
+      int receivedFuelType = getFuelContents(getLastValueReceivedOnFace(f));
+      // Set fuel color to new fuel color
+      fuelColor = fuelColors[receivedFuelType];
+      // Determine actual shifted index
+      receivedFuelType = ((receivedFuelType - 1) + fuelIndexShift) % 6;
+      // Add fuel load
+      fuel = fuel + fuelLoads[receivedFuelType];
+      // Set burn rate
+      burnRate = fuelBurns[receivedFuelType];
+      // Mark received on face
+      receivedOnFace[f] = true;
+    }
+  }
+  if (!asteroidConnected()) {
+    FOREACH_FACE(f) {
+      receivedOnFace[f] = false;
+    }
+  }
+}
+
+// Check face for ship
 bool isShipOnFace (int f) {
   if (!isValueReceivedOnFaceExpired(f)){
     if (getObjectType(getLastValueReceivedOnFace(f)) == 1) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+// Check face for asteroid
+bool isAsteroidOnFace (int f) {
+  if (!isValueReceivedOnFaceExpired(f)){
+    if (getObjectType(getLastValueReceivedOnFace(f)) == 0) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+bool sendingFuelOnFace (int f) {
+  if (!isValueReceivedOnFaceExpired(f)){
+    if (getFuelContents(getLastValueReceivedOnFace(f)) != NONE) {
       return true;
     } else {
       return false;
@@ -195,15 +260,15 @@ void checkFuelConsumption () {
     if (fuelConsumption.isExpired()) {
       fuel = fuel - burnRate;
       fuelConsumption.set(FUELTIMERDELAYMS);
-    } else {
-      destroyShip();
     }
+  } else {
+    fuel = 0;
+    destroyShip();
   }
 }
 
 // Out of fuel, game over.
 void destroyShip () {
-  
 }
 
 // Handle outgoing communications
