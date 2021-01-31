@@ -15,12 +15,12 @@
 // Color defaults
 #define STARTINGENERGYCOLOR WHITE
 #define ENERGYACOLOR RED
-#define ENERGYBCOLOR makeColorRGB (128, 0, 128) //Purple
+#define ENERGYBCOLOR YELLOW
 #define ENERGYCCOLOR GREEN
-#define ENERGYDCOLOR YELLOW
-#define ENERGYECOLOR CYAN
-#define ENERGYFCOLOR BLUE // not needed anymore
-#define ENERGYGCOLOR MAGENTA // not needed anymore
+#define ENERGYDCOLOR MAGENTA
+#define ENERGYECOLOR BLUE
+//#define ENERGYFCOLOR BLUE // not needed anymore
+//#define ENERGYGCOLOR MAGENTA // not needed anymore
 #define PARTICLECOLOR OFF //makeColorRGB (150, 75, 0) //Brown
 #define UNSCANNED OFF //makeColorRGB (20, 10, 0) //Dark Brown?
 
@@ -32,9 +32,9 @@ enum gameModes {SETUP, LOADING, INGAME, FINALE};
 byte gameMode = SETUP;
 
 enum energyTypes {NONE, ENERGYA, ENERGYB, ENERGYC, ENERGYD, ENERGYE};
-Color energyColor[] = {PARTICLECOLOR,ENERGYACOLOR,ENERGYBCOLOR,ENERGYCCOLOR,ENERGYDCOLOR,ENERGYECOLOR};
+Color energyColors[] = {PARTICLECOLOR,ENERGYACOLOR,ENERGYBCOLOR,ENERGYCCOLOR,ENERGYDCOLOR,ENERGYECOLOR};
 int energyLoads[] = {60,240,150,60,150};
-int energyDecay[] = {4,4,2,1,1};
+int energyDecays[] = {4,4,2,1,1};
 int energyIndexShift = 0;
 
 /*  IN-GAME COMMS SCHEME
@@ -47,7 +47,7 @@ int energyIndexShift = 0;
  */
 
 // Ship-specific variables
-Timer energyDecay;
+Timer energyDecayRate;
 int energy = STARTINGENERGY;
 int decayRate = ENERGYDECREMENT;
 byte energyType = NONE;
@@ -56,11 +56,11 @@ bool receivedOnFace[] = {false,false,false,false,false,false};
 
 // Particle-specific variables
 Timer scanDecay;
-Timer gatherTimer;
+Timer absorbTimer;
 bool isScanned = false;
 bool scanFading = true;
 bool freshScan = false;
-int fuelContents[] = {NONE, NONE, NONE, NONE, NONE, NONE};
+int energyContents[] = {NONE, NONE, NONE, NONE, NONE, NONE};
 bool sendingOnFace[] = {false,false,false,false,false,false};
 
 // Functions and processes that run at startup, then never again.
@@ -102,7 +102,7 @@ void makeParticle () {
 // Randomize and distribute energy
 void seedEnergy () {
   FOREACH_FACE(f) {
-    int randomEnergy = random(EnergyRARITY) - (EnergyRARITY-5);
+    int randomEnergy = random(ENERGYRARITY) - (ENERGYRARITY-5);
     if (randomEnergy < 0) {
       randomEnergy = 0;
     }
@@ -117,9 +117,9 @@ void checkObjectSwap () {
       objectType = SHIP;
       energy = STARTINGENERGY;
       energyColor = STARTINGENERGYCOLOR;
-      energyDecay.set(ENERGYTIMERDELAYMS);
+      energyDecayRate.set(ENERGYTIMERDELAYMS);
       decayRate = ENERGYDECREMENT;
-      energyIndexShift = random(6);
+      energyIndexShift = random(4);
     } else {
       makeParticle();
     }
@@ -171,7 +171,7 @@ bool particleConnected () {
   return particleFound;
 }
 
-void energyFuelSend () {
+void checkEnergySend () {
   FOREACH_FACE(f) {
     if (absorbTimer.isExpired() && sendingOnFace[f]) {
         sendingOnFace[f] = false;
@@ -200,7 +200,7 @@ void checkEnergyReceive() {
       // Set energy color to new energy color
       energyColor = energyColors[receivedEnergyType];
       // Determine actual shifted index
-      receivedEnergyType = ((receivedEnergyType - 1) + energyIndexShift) % 6;
+      receivedEnergyType = ((receivedEnergyType - 1) + energyIndexShift) % 5;
       // Add energy load
       energy = energy + energyLoads[receivedEnergyType];
       // Set decay rate
@@ -257,12 +257,12 @@ bool sendingEnergyOnFace (int f) {
 // See if energy should be decreased or is now empty
 void checkEnergyDecay () {
   if ( energy > 0 ) {
-    if (energyDecay.isExpired()) {
+    if (energyDecayRate.isExpired()) {
       energy = energy - decayRate;
-      energyConsumption.set(ENERGYTIMERDELAYMS);
+      energyDecayRate.set(ENERGYTIMERDELAYMS);
     }
   } else {
-    fuel = 0;
+    energy = 0;
     destroyShip();
   }
 }
