@@ -1,16 +1,18 @@
 // Default values and balancing variables
 
 // Ship charge
-#define STARTINGENERGY 240
+#define STARTINGENERGY 120
 #define ENERGYDECREMENT 1
 #define ENERGYTIMERDELAYMS 100
 #define ENERGYMAX 360
-#define ENERGYTARGET 230
-#define ENERGYRARITY 15 // Larger is more rare
+#define ENERGYTARGET 500
+#define ENERGYRARITY 16 // Larger is more rare
 
 // Gameplay Rates
 #define SCANDECAYMS 5000
-#define ABSORBTIMEMS 100
+#define ABSORBTIMEMS 200
+#define PULSERATE 1000
+#define DEATHANIMTIME 2000
 
 // Color defaults
 #define STARTINGENERGYCOLOR WHITE
@@ -23,6 +25,8 @@
 //#define ENERGYGCOLOR MAGENTA // not needed anymore
 #define PARTICLECOLOR OFF //makeColorRGB (150, 75, 0) //Brown
 #define UNSCANNED OFF //makeColorRGB (20, 10, 0) //Dark Brown?
+#define BUBBLEMAX 30
+#define EXPLOSIONRANGE 20
 
 // State and Comms Variables
 enum objectTypes {PARTICLE, SHIP};
@@ -48,6 +52,9 @@ int energyIndexShift = 0;
 
 // Ship-specific variables
 Timer energyDecayRate;
+Timer deathTimer;
+bool isDying = false;
+bool isDead = false;
 int energy = STARTINGENERGY;
 int decayRate = ENERGYDECREMENT;
 byte energyType = NONE;
@@ -120,6 +127,8 @@ void checkObjectSwap () {
       energyDecayRate.set(ENERGYTIMERDELAYMS);
       decayRate = ENERGYDECREMENT;
       energyIndexShift = random(4);
+      isDying = false;
+      isDead = false;
     } else {
       makeParticle();
     }
@@ -128,7 +137,7 @@ void checkObjectSwap () {
 
 // Handle scan display
 void checkScan () {
-  if (shipConnected()) {
+  if (shipConnected() && !particleConnected()) {
     if (!isScanned){
       seedEnergy();
     }
@@ -256,7 +265,7 @@ bool sendingEnergyOnFace (int f) {
 
 // See if energy should be decreased or is now empty
 void checkEnergyDecay () {
-  if ( energy > 0 ) {
+  if ( energy > 0 && !isDying && !isDead) {
     if (energyDecayRate.isExpired()) {
       energy = energy - decayRate;
       energyDecayRate.set(ENERGYTIMERDELAYMS);
@@ -269,6 +278,15 @@ void checkEnergyDecay () {
 
 // Out of fuel, game over.
 void destroyShip () {
+  if (!isDying & !isDead){
+    deathTimer.set(DEATHANIMTIME);
+    isDying = true;
+  }
+  if (deathTimer.isExpired()){
+    isDying = false;
+    isDead = true;
+    makeParticle();
+  }
 }
 
 // Handle outgoing communications
@@ -306,18 +324,36 @@ void displayHandler () {
     int fullLEDs = round(energy / energyPerLED); // How many LEDs are 100% full
     int remainder = round(energy % energyPerLED); // remaining energy in partially full LED
     FOREACH_FACE(f) {
-      if (f < (fullLEDs)) {
-        setColorOnFace(energyColor, f); // Make full LEDs lit
-      } else if (f > (fullLEDs)){
-        setColorOnFace(OFF, f); // Make empty LEDs off
+      if (!isDying && !isDead){
+        if (f < (fullLEDs)) {
+          setColorOnFace(energyColor, f); // Make full LEDs lit
+        } else if (f > (fullLEDs)){
+          setColorOnFace(OFF, f); // Make empty LEDs off
+        } else {
+          int pulseInvert =  PULSERATE  / decayRate;
+          int pulseRemaining = millis() % pulseInvert;
+          byte pulseMapped = map(pulseRemaining, 0, pulseInvert, 0, 255);
+          byte dimness = sin8_C(pulseMapped);
+          setColorOnFace(dim(energyColor,dimness), f);
+          //setColorOnFace(dim(energyColor,map(remainder,0,energyPerLED,0,255)), f); // set partial brightness to partially full LED, mapped to 255 scale
+        }
+      } else if (isDying) {
+        if (deathTimer.getRemaining() > 400){
+          int explosionHue = sin8_C(millis() % EXPLOSIONRANGE);
+          setColorOnFace(makeColorHSB(explosionHue + 110,255,255),f);
+        } else {
+          int noise = random(deathTimer.getRemaining());
+          setColorOnFace(makeColorRGB(noise,noise,noise),f);
+        } 
       } else {
-        setColorOnFace(dim(energyColor,map(remainder,0,energyPerLED,0,255)), f); // set partial brightness to partially full LED, mapped to 255 scale
+        setColorOnFace(OFF,f);
       }
     }
   } else { // Particle display handler
     if (!isScanned) { // Unscanned particles display as blank (for now)
       FOREACH_FACE (f) {
-        setColorOnFace(UNSCANNED, f);
+        int bubbleNoise = 40; //random(BUBBLEMAX);
+        setColorOnFace(makeColorRGB(bubbleNoise,bubbleNoise,bubbleNoise), f);
       }
     } else if (!scanFading) { // Scanned but not fading (usually because ship still connected) displays as full brightness
       FOREACH_FACE (f) {
