@@ -10,7 +10,7 @@
 
 // Gameplay Rates
 #define SCANDECAYMS 5000
-#define GATHERTIMEMS 1500
+#define GATHERTIMEMS 250
 
 // Color defaults
 #define STARTINGFUELCOLOR WHITE
@@ -34,7 +34,7 @@ byte gameMode = SETUP;
 enum fuelTypes {NONE, FUELA, FUELB, FUELC, FUELD, FUELE, FUELF, FUELG};
 Color fuelColors[] = {ROCKCOLOR,FUELACOLOR,FUELBCOLOR,FUELCCOLOR,FUELDCOLOR,FUELECOLOR,FUELFCOLOR,FUELGCOLOR};
 int fuelLoads[] = {40,80,120,80,120,40,80};
-int fuelBurns[] = {3, 3, 3,  2, 2,  1, 1};
+int fuelBurns[] = {3,3,3,2,2,1,1};
 int fuelIndexShift = 0;
 
 /*  IN-GAME COMMS SCHEME
@@ -43,7 +43,7 @@ int fuelIndexShift = 0;
  *     <-Fuel Type on this face?->      <-Game Mode->      <-0->
  *   Ship(s):
  *      32         16          8         4         2         1
- *                        <-Gather?->   <-Game Mode->      <-1->
+ *                                      <-Game Mode->      <-1->
  */
 
 // Ship-specific variables
@@ -55,10 +55,12 @@ Color fuelColor = STARTINGFUELCOLOR;
 
 // Asteroid-specific variables
 Timer scanDecay;
+Timer gatherTimer;
 bool isScanned = false;
 bool scanFading = true;
 bool freshScan = false;
 int fuelContents[] = {NONE, NONE, NONE, NONE, NONE, NONE};
+bool sendingOnFace[] = {false,false,false,false,false,false};
 
 // Functions and processes that run at startup, then never again.
 void setup() {
@@ -76,6 +78,7 @@ void loop() {
   switch (objectType) {
     case ASTEROID:
       checkScan();
+      checkFuelSend();
     break;
     case SHIP:
       checkFuelConsumption();
@@ -144,10 +147,43 @@ void checkScan () {
 }
 
 // Return true if ship is connected
-// TODO: Replace temp isAlone with actual check for ship
 bool shipConnected () {
-  if (!isAlone()) {
-    return true;
+  bool shipFound = false; 
+  FOREACH_FACE(f) {
+    if (isShipOnFace(f)) {
+      shipFound = true;
+    }
+  }
+  return shipFound;
+}
+
+void checkFuelSend () {
+  if (shipConnected()) {
+    FOREACH_FACE(f) {
+      if (isShipOnFace(f)) {
+        sendingOnFace[f] = true;
+        gatherTimer.set(GATHERTIMEMS);
+      }
+      if (gatherTimer.isExpired() && sendingOnFace[f]) {
+        sendingOnFace[f] = false;
+        fuelContents[f] = NONE;
+      }
+    }
+  }
+  if (!shipConnected()) {
+    FOREACH_FACE(f) {
+      sendingOnFace[f] = false;
+    }
+  }
+}
+
+bool isShipOnFace (int f) {
+  if (!isValueReceivedOnFaceExpired(f)){
+    if (getObjectType(getLastValueReceivedOnFace(f)) == 1) {
+      return true;
+    } else {
+      return false;
+    }
   } else {
     return false;
   }
@@ -170,9 +206,31 @@ void destroyShip () {
   
 }
 
-// Handle parsing bitwise communications
+// Handle outgoing communications
 void commsHandler () {
-  
+  if (objectType == SHIP) {
+    setValueSentOnAllFaces((gameMode << 1) + 1);
+  } else {
+    FOREACH_FACE(f) {
+      if (sendingOnFace[f]) {
+        setValueSentOnFace((fuelContents[f] << 3) + (gameMode << 1) + 0, f);
+      } else {
+        setValueSentOnFace((NONE << 3) + (gameMode << 1) + 0, f);
+      }
+    }
+  }
+}
+
+byte getObjectType (byte data) {
+  return (data & 1);
+}
+
+byte getGameMode (byte data) {
+  return ((data >> 1) & 3);
+}
+
+byte getFuelContents (byte data) {
+  return ((data >> 3) & 7);
 }
 
 // Handle LED display
@@ -192,15 +250,15 @@ void displayHandler () {
       }
     }
   } else { // Asteroid display handler
-    if (!isScanned) {
+    if (!isScanned) { // Unscanned asteroids display as blank (for now)
       FOREACH_FACE (f) {
         setColorOnFace(UNSCANNED, f);
       }
-    } else if (!scanFading) {
+    } else if (!scanFading) { // Scanned but not fading (usually because ship still connected) displays as full brightness
       FOREACH_FACE (f) {
         setColorOnFace(fuelColors[fuelContents[f]],f);
       }
-    } else {
+    } else { // Scanned and fading, dim to match fading scan
       int scanRemaining = map(scanDecay.getRemaining(),0,SCANDECAYMS,0,255);
       FOREACH_FACE (f) {
       setColorOnFace(dim(fuelColors[fuelContents[f]],scanRemaining),f);
