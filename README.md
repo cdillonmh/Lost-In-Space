@@ -7,9 +7,9 @@
 Your experimental nano-ship is a revolution in miniaturization technology, but your latest test run has gone too far. Lost in the quantum field with your ship’s charge depleting, your only hope is to absorb the energy from the roaming particles, figure out which will help you overcharge your nano-ship, and make one last attempt to rejoin the regular-sized world.
 
 Playing:
-1. Separate all blinks and spread across your play area.
+1. Separate all Blinks from each other and spread across your play area.
 2. Long-press one Blink to make it your nano-ship, shrunken too far and running out of energy!
-3. Attach to a potential particle to collapse it into a revealed state. It will stay revealed while you're attached, but will start to lose coheerence and return to the quantum foam if you disconnect from it.
+3. Attach to a single potential particle to collapse it into a revealed state. It will stay revealed while you're attached, but will start to lose coheerence and return to the quantum foam if you disconnect from it or connect to a second particle.
 4. Connect to a colored portion of the revealed particle and click the particle to absorb the contained energy, but watch what happens to your energy levels carefully! 
   - Different colored particles have varying and unknowable energy content and can cause your ship's energy to deplete faster or more slowly.
   - Try to learn which colors have which effects and use them to steadily grow your energy meter.
