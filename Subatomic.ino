@@ -5,7 +5,7 @@
 #define ENERGYDECREMENT 1
 #define ENERGYTIMERDELAYMS 100
 #define ENERGYMAX 360
-#define ENERGYTARGET 500
+#define ENERGYTARGET 1440
 #define ENERGYRARITY 16 // Larger is more rare
 
 // Gameplay Rates
@@ -19,7 +19,7 @@
 #define ENERGYACOLOR RED
 #define ENERGYBCOLOR YELLOW
 #define ENERGYCCOLOR GREEN
-#define ENERGYDCOLOR MAGENTA
+#define ENERGYDCOLOR CYAN
 #define ENERGYECOLOR BLUE
 //#define ENERGYFCOLOR BLUE // not needed anymore
 //#define ENERGYGCOLOR MAGENTA // not needed anymore
@@ -53,6 +53,10 @@ int energyIndexShift = 0;
 // Ship-specific variables
 Timer energyDecayRate;
 Timer deathTimer;
+Timer overchargeTimer;
+int overchargeTarget = 0;
+bool isWinning = false;
+bool hasWon = false;
 bool isDying = false;
 bool isDead = false;
 int energy = STARTINGENERGY;
@@ -91,6 +95,7 @@ void loop() {
     case SHIP:
       checkEnergyDecay();
       checkEnergyReceive();
+      checkOverchargeProgress();
     break;
   }
   
@@ -129,6 +134,8 @@ void checkObjectSwap () {
       energyIndexShift = random(4);
       isDying = false;
       isDead = false;
+      isWinning = false;
+      hasWon = false;
     } else {
       makeParticle();
     }
@@ -276,6 +283,21 @@ void checkEnergyDecay () {
   }
 }
 
+void checkOverchargeProgress () {
+  if (energy > ENERGYTARGET) {
+    if (!isWinning){
+      isWinning = true;
+      decayRate = 0;
+      deathTimer.set(DEATHANIMTIME);
+    }
+  } else if (energy > ENERGYMAX) {
+    if (overchargeTimer.isExpired()) {
+      overchargeTarget = (overchargeTarget + 1) % 6;
+      overchargeTimer.set(ENERGYTARGET - energy);
+    }
+  }
+}
+
 // Out of fuel, game over.
 void destroyShip () {
   if (!isDying & !isDead){
@@ -324,8 +346,30 @@ void displayHandler () {
     int fullLEDs = round(energy / energyPerLED); // How many LEDs are 100% full
     int remainder = round(energy % energyPerLED); // remaining energy in partially full LED
     FOREACH_FACE(f) {
-      if (!isDying && !isDead){
-        if (f < (fullLEDs)) {
+      if (hasWon){
+        int explosionHue = sin8_C(millis() % EXPLOSIONRANGE) + random(20);
+        setColorOnFace(makeColorHSB(explosionHue,255,255),f);
+      } else if (isWinning){
+        if (deathTimer.getRemaining() > (2 * (DEATHANIMTIME / 3))){
+          if (f == 0) {
+            setColorOnFace(WHITE,f);
+          }
+        }
+        if (deathTimer.getRemaining() > (DEATHANIMTIME / 3)){
+          if (f == 0 || f == 5 || f == 1) {
+            setColorOnFace(WHITE,f);
+          } else {
+            hasWon = true;
+          }
+        }
+      } else if (!isDying && !isDead){
+        if (fullLEDs > 6) {
+          if (f == overchargeTarget){
+            setColorOnFace(WHITE,f);
+          } else {
+            setColorOnFace(energyColor, f);
+          }
+        } else if (f < (fullLEDs)) {
           setColorOnFace(energyColor, f); // Make full LEDs lit
         } else if (f > (fullLEDs)){
           setColorOnFace(OFF, f); // Make empty LEDs off
