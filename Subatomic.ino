@@ -7,7 +7,6 @@
 
  /* To Dos:
   *  - Better energy balancing (more subtlety? danger? Too easy once you find a "good" particle)
-  *  - Fix win animation (skips "growing" phase, celebration kind of lame)
   *  - Write better instructions in README
   *  
   * Eventually:
@@ -17,6 +16,7 @@
 // Ship charge
 #define STARTINGENERGY 120
 #define ENERGYDECREMENT 1
+#define LEVELBOOST 2
 #define ENERGYTIMERDELAYMS 100
 #define ENERGYMAX 360
 #define ENERGYTARGET 1440
@@ -27,6 +27,7 @@
 #define ABSORBTIMEMS 200
 #define PULSERATE 1000
 #define DEATHANIMTIME 2000
+#define WINANIMTIME 5000
 
 // Color defaults
 #define STARTINGENERGYCOLOR WHITE
@@ -49,7 +50,7 @@ byte gameMode = SETUP;
 
 enum energyTypes {NONE, ENERGYA, ENERGYB, ENERGYC, ENERGYD, ENERGYE};
 Color energyColors[] = {PARTICLECOLOR,ENERGYACOLOR,ENERGYBCOLOR,ENERGYCCOLOR,ENERGYDCOLOR,ENERGYECOLOR};
-int energyLoads[] = {60,240,150,60,150};
+int energyLoads[] = {60,200,150,60,150};
 int energyDecays[] = {4,4,2,1,1};
 int energyIndexShift = 0;
 
@@ -73,6 +74,8 @@ bool isDying = false;
 bool isDead = false;
 int energy = STARTINGENERGY;
 int decayRate = ENERGYDECREMENT;
+int difficultyBoost = 0;
+bool hasBoosted = false;
 byte energyType = NONE;
 Color energyColor = STARTINGENERGYCOLOR;
 bool receivedOnFace[] = {false,false,false,false,false,false};
@@ -148,6 +151,7 @@ void checkObjectSwap () {
       isDead = false;
       isWinning = false;
       hasWon = false;
+      difficultyBoost = 0;
     } else {
       makeParticle();
     }
@@ -286,7 +290,7 @@ bool sendingEnergyOnFace (int f) {
 void checkEnergyDecay () {
   if ( energy > 0 && !isDying && !isDead) {
     if (energyDecayRate.isExpired()) {
-      energy = energy - decayRate;
+      energy = energy - (decayRate + difficultyBoost);
       energyDecayRate.set(ENERGYTIMERDELAYMS);
     }
   } else {
@@ -296,16 +300,24 @@ void checkEnergyDecay () {
 }
 
 void checkOverchargeProgress () {
+  if (isWinning && deathTimer.isExpired()){
+    hasWon = true;
+  }
   if (energy > ENERGYTARGET) {
     if (!isWinning){
       isWinning = true;
       decayRate = 0;
-      deathTimer.set(DEATHANIMTIME);
+      difficultyBoost = 0;
+      deathTimer.set(WINANIMTIME);
     }
   } else if (energy > ENERGYMAX) {
+    if (!hasBoosted){
+      hasBoosted = true;
+      difficultyBoost = LEVELBOOST;
+    }
     if (overchargeTimer.isExpired()) {
       overchargeTarget = (overchargeTarget + 1) % 6;
-      overchargeTimer.set(ENERGYTARGET - energy);
+      overchargeTimer.set(ENERGYTARGET - energy - 150);
     }
   }
 }
@@ -326,7 +338,17 @@ void destroyShip () {
 // Handle outgoing communications
 void commsHandler () {
   if (objectType == SHIP) {
-    setValueSentOnAllFaces((gameMode << 1) + 1);
+    byte numParticles = 0;
+    FOREACH_FACE(f) {
+      if (isParticleOnFace(f)){
+        numParticles++;
+      }
+    }
+    if (numParticles < 2) {
+      setValueSentOnAllFaces((gameMode << 1) + 1);
+    } else {
+      setValueSentOnAllFaces((gameMode << 1) + 0);
+    }
   } else {
     FOREACH_FACE(f) {
       if (sendingOnFace[f]) {
@@ -362,16 +384,23 @@ void displayHandler () {
         int explosionHue = sin8_C(millis() % EXPLOSIONRANGE) + random(20);
         setColorOnFace(makeColorHSB(explosionHue,255,255),f);
       } else if (isWinning){
-        if (deathTimer.getRemaining() > (2 * (DEATHANIMTIME / 3))){
-          if (f == 0) {
-            setColorOnFace(WHITE,f);
-          }
-        }
-        if (deathTimer.getRemaining() > (DEATHANIMTIME / 3)){
-          if (f == 0 || f == 5 || f == 1) {
+        if (deathTimer.getRemaining() > 3000){
+          if (f == 3) {
             setColorOnFace(WHITE,f);
           } else {
-            hasWon = true;
+            setColorOnFace(OFF,f);
+          }
+        } else if (deathTimer.getRemaining() > 2000){
+          if (f == 2 || f == 3 || f == 4) {
+            setColorOnFace(WHITE,f);
+          } else {
+            setColorOnFace(OFF,f);
+          }
+        } else if (deathTimer.getRemaining() > 1000){
+          if (f == 1 || f == 2 || f == 3 || f == 4 || f == 5) {
+            setColorOnFace(WHITE,f);
+          } else {
+            setColorOnFace(OFF,f);
           }
         }
       } else if (!isDying && !isDead){
