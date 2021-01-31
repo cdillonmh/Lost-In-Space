@@ -1,60 +1,60 @@
-// Default values and balancing variables - test change
+// Default values and balancing variables
 
-// Ship fuel
-#define STARTINGFUEL 160
-#define FUELDECREMENT 1
-#define FUELTIMERDELAYMS 100
-#define FUELMAX 240
-#define FUELTARGET 230
-#define FUELRARITY 21 // Larger is more rare
+// Ship charge
+#define STARTINGENERGY 240
+#define ENERGYDECREMENT 1
+#define ENERGYTIMERDELAYMS 100
+#define ENERGYMAX 360
+#define ENERGYTARGET 230
+#define ENERGYRARITY 15 // Larger is more rare
 
 // Gameplay Rates
 #define SCANDECAYMS 5000
-#define GATHERTIMEMS 100
+#define ABSORBTIMEMS 100
 
 // Color defaults
-#define STARTINGFUELCOLOR WHITE
-#define FUELACOLOR RED
-#define FUELBCOLOR makeColorRGB (128, 0, 128) //Purple
-#define FUELCCOLOR GREEN
-#define FUELDCOLOR YELLOW
-#define FUELECOLOR CYAN
-#define FUELFCOLOR BLUE
-#define FUELGCOLOR MAGENTA
-#define ROCKCOLOR OFF //makeColorRGB (150, 75, 0) //Brown
+#define STARTINGENERGYCOLOR WHITE
+#define ENERGYACOLOR RED
+#define ENERGYBCOLOR makeColorRGB (128, 0, 128) //Purple
+#define ENERGYCCOLOR GREEN
+#define ENERGYDCOLOR YELLOW
+#define ENERGYECOLOR CYAN
+#define ENERGYFCOLOR BLUE // not needed anymore
+#define ENERGYGCOLOR MAGENTA // not needed anymore
+#define PARTICLECOLOR OFF //makeColorRGB (150, 75, 0) //Brown
 #define UNSCANNED OFF //makeColorRGB (20, 10, 0) //Dark Brown?
 
 // State and Comms Variables
-enum objectTypes {ASTEROID, SHIP};
-byte objectType = ASTEROID;
+enum objectTypes {PARTICLE, SHIP};
+byte objectType = PARTICLE;
 
 enum gameModes {SETUP, LOADING, INGAME, FINALE};
 byte gameMode = SETUP;
 
-enum fuelTypes {NONE, FUELA, FUELB, FUELC, FUELD, FUELE, FUELF, FUELG};
-Color fuelColors[] = {ROCKCOLOR,FUELACOLOR,FUELBCOLOR,FUELCCOLOR,FUELDCOLOR,FUELECOLOR,FUELFCOLOR,FUELGCOLOR};
-int fuelLoads[] = {40,80,120,80,120,40,80};
-int fuelBurns[] = {3,3,3,2,2,1,1};
-int fuelIndexShift = 0;
+enum energyTypes {NONE, ENERGYA, ENERGYB, ENERGYC, ENERGYD, ENERGYE};
+Color energyColor[] = {PARTICLECOLOR,ENERGYACOLOR,ENERGYBCOLOR,ENERGYCCOLOR,ENERGYDCOLOR,ENERGYECOLOR};
+int energyLoads[] = {60,240,150,60,150};
+int energyDecay[] = {4,4,2,1,1};
+int energyIndexShift = 0;
 
 /*  IN-GAME COMMS SCHEME
- *   Asteroids:
+ *   Particles:
  *      32         16          8         4         2         1
- *     <-Fuel Type on this face?->      <-Game Mode->      <-0->
+ *     <-Energy Type on this face?->      <-Game Mode->      <-0->
  *   Ship(s):
  *      32         16          8         4         2         1
  *                                      <-Game Mode->      <-1->
  */
 
 // Ship-specific variables
-Timer fuelConsumption;
-int fuel = STARTINGFUEL;
-int burnRate = FUELDECREMENT;
-byte fuelType = NONE;
-Color fuelColor = STARTINGFUELCOLOR;
+Timer energyDecay;
+int energy = STARTINGENERGY;
+int decayRate = ENERGYDECREMENT;
+byte energyType = NONE;
+Color energyColor = STARTINGENERGYCOLOR;
 bool receivedOnFace[] = {false,false,false,false,false,false};
 
-// Asteroid-specific variables
+// Particle-specific variables
 Timer scanDecay;
 Timer gatherTimer;
 bool isScanned = false;
@@ -66,7 +66,7 @@ bool sendingOnFace[] = {false,false,false,false,false,false};
 // Functions and processes that run at startup, then never again.
 void setup() {
   randomize(); // Seeds randomness for any RNG use
-  makeAsteroid(); // Setup and seed this asteroid
+  makeParticle(); // Setup and seed this particle
 }
 
 // Main process loop. Each Blink runs this over and over after setup.
@@ -77,13 +77,13 @@ void loop() {
   
   // Run functions specific to object types
   switch (objectType) {
-    case ASTEROID:
+    case PARTICLE:
       checkScan();
-      checkFuelSend();
+      checkEnergySend();
     break;
     case SHIP:
-      checkFuelConsumption();
-      checkFuelReceive();
+      checkEnergyDecay();
+      checkEnergyReceive();
     break;
   }
   
@@ -93,20 +93,20 @@ void loop() {
   
 }
 
-// Creating this object as an asteroid
-void makeAsteroid () {
-  objectType = ASTEROID;
-  seedFuel();
+// Creating this object as a particle
+void makeParticle () {
+  objectType = PARTICLE;
+  seedEnergy();
 }
 
-// Randomize and distribute fuel
-void seedFuel () {
+// Randomize and distribute energy
+void seedEnergy () {
   FOREACH_FACE(f) {
-    int randomFuel = random(FUELRARITY) - (FUELRARITY-7);
-    if (randomFuel < 0) {
-      randomFuel = 0;
+    int randomEnergy = random(EnergyRARITY) - (EnergyRARITY-5);
+    if (randomEnergy < 0) {
+      randomEnergy = 0;
     }
-    fuelContents[f] = randomFuel;
+    energyContents[f] = randomEnergy;
   }
 }
 
