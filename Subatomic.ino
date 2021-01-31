@@ -14,7 +14,7 @@
   */
  
 // Ship charge
-#define STARTINGENERGY 240
+#define STARTINGENERGY 300
 #define ENERGYDECREMENT 1
 #define LEVELBOOST 1
 #define ENERGYTIMERDELAYMS 100
