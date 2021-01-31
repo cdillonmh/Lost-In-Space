@@ -14,11 +14,11 @@
   */
  
 // Ship charge
-#define STARTINGENERGY 120
+#define STARTINGENERGY 240
 #define ENERGYDECREMENT 1
-#define LEVELBOOST 2
+#define LEVELBOOST 1
 #define ENERGYTIMERDELAYMS 100
-#define ENERGYMAX 360
+#define ENERGYMAX 720
 #define ENERGYTARGET 1440
 #define ENERGYRARITY 16 // Larger is more rare
 
@@ -31,7 +31,7 @@
 
 // Color defaults
 #define STARTINGENERGYCOLOR WHITE
-#define ENERGYACOLOR RED
+#define ENERGYACOLOR MAGENTA
 #define ENERGYBCOLOR YELLOW
 #define ENERGYCCOLOR GREEN
 #define ENERGYDCOLOR CYAN
@@ -50,7 +50,7 @@ byte gameMode = SETUP;
 
 enum energyTypes {NONE, ENERGYA, ENERGYB, ENERGYC, ENERGYD, ENERGYE};
 Color energyColors[] = {PARTICLECOLOR,ENERGYACOLOR,ENERGYBCOLOR,ENERGYCCOLOR,ENERGYDCOLOR,ENERGYECOLOR};
-int energyLoads[] = {60,200,150,60,150};
+int energyLoads[] = {60,180,120,60,120};
 int energyDecays[] = {4,4,2,1,1};
 int energyIndexShift = 0;
 
