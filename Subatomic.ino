@@ -8,7 +8,7 @@
  /* To Dos:
   *  - Better energy balancing (more subtlety? danger? Too easy once you find a "good" particle)
   *  - Fix win animation (skips "growing" phase, celebration kind of lame)
-  *  - Write detailed instructions
+  *  - Write better instructions in README
   *  
   * Eventually:
   *  - Test startup and finale "waveform" mechanic?
