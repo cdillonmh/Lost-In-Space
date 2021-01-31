@@ -1,5 +1,19 @@
-// Default values and balancing variables
+/* 
+  Subatomic
+  for Move38 Blinks
+  By Dillon Hall and Dominik Gnirs
+ 
+ */
 
+ /* To Dos:
+  *  - Better energy balancing (more subtlety? danger? Too easy once you find a "good" particle)
+  *  - Fix win animation (skips "growing" phase, celebration kind of lame)
+  *  - Write detailed instructions
+  *  
+  * Eventually:
+  *  - Test startup and finale "waveform" mechanic?
+  */
+ 
 // Ship charge
 #define STARTINGENERGY 120
 #define ENERGYDECREMENT 1
@@ -21,8 +35,6 @@
 #define ENERGYCCOLOR GREEN
 #define ENERGYDCOLOR CYAN
 #define ENERGYECOLOR BLUE
-//#define ENERGYFCOLOR BLUE // not needed anymore
-//#define ENERGYGCOLOR MAGENTA // not needed anymore
 #define PARTICLECOLOR OFF //makeColorRGB (150, 75, 0) //Brown
 #define UNSCANNED OFF //makeColorRGB (20, 10, 0) //Dark Brown?
 #define BUBBLEMAX 30
